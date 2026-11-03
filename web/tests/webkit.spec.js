@@ -5,6 +5,7 @@ test('iPhone-like WebKit can pair with Chromium tablet', async ({browser},testIn
   const receiver=await tablet.newPage();
   const phoneBrowser=await webkit.launch({channel:undefined});
   const phone=await phoneBrowser.newContext({isMobile:true,hasTouch:true,viewport:{width:390,height:844}});
+  await phone.addInitScript(()=>{Object.defineProperty(navigator.mediaDevices,'getDisplayMedia',{value:undefined,configurable:true});});
   const sender=await phone.newPage();
   const errors=[];
   for (const [name,page] of [['tablet',receiver],['phone',sender]]) {

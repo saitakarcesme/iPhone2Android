@@ -10,13 +10,13 @@ Site: https://iphone2android-ibrahimsait2023-projects.vercel.app
 
 - QR kodu ile süreli, rastgele anahtarlı oturum eşleştirme.
 - İki cihazda doğrulama kodu ve alıcı onayı.
-- Destekleyen tarayıcılarda WebRTC ekran aktarımı.
+- Destekleyen tarayıcılarda WebRTC ekran aktarımı. Ekran yakalama, kullanıcı dokunuşuyla bağlantıdan önce başlatılır; medya ancak tablet onayından sonra gönderilir. API varlığı, çalışan ekran yakalama desteği olarak kabul edilmez.
 - Ana ekrana eklenebilen web uygulaması manifesti.
 - Bağlantı kesilmesi, reddedilen izinler ve desteklenmeyen cihazlar için durum yönetimi.
 
 Bu sürüm iPhone uzaktan kontrolü içermez. iOS tarayıcısında ekran yakalama yoksa bunu açıkça bildirir; kamera veya örnek görüntüyü telefon ekranı olarak göstermez. Native iOS ReplayKit yayın uygulaması ve Android Bluetooth HID kontrol uygulaması henüz uygulanmadı.
 
-PeerJS Cloud yalnızca bağlantı sinyalleşmesi için kullanılır. Medya WebRTC üzerinden taşınır. PeerJS’in varsayılan STUN/TURN yapılandırması kullanılır. Varsayılan TURN sunucularının DNS çözümlemesi testte başarısız oldu. WebKit–Chromium eşleştirmesi bir denemede başarısız, sonraki yerel denemede başarılı oldu; farklı ağlarda çalışma garantisi yoktur. Kullanıcının tercihiyle ek servis kurulumu durduruldu ve aynı Wi-Fi kullanımına odaklanıldı. Aynı Wi-Fi ağı önerilir. Web uygulaması Vercel üzerinde yayınlanır.
+PeerJS Cloud yalnızca bağlantı sinyalleşmesi için kullanılır. Medya WebRTC üzerinden taşınır. Google ve Cloudflare STUN sunucuları kullanılır. DNS çözümlemesi başarısız olan eski PeerJS TURN adresleri kaldırıldı; çalışan bir TURN relay hizmeti henüz bağlı değildir. WebKit–Chromium eşleştirmesi bir denemede başarısız, sonraki yerel denemede başarılı oldu; farklı ağlarda çalışma garantisi yoktur. Kullanıcının tercihiyle ek servis kurulumu durduruldu ve aynı Wi-Fi kullanımına odaklanıldı. Aynı Wi-Fi ağı önerilir. Web uygulaması Vercel üzerinde yayınlanır.
 
 ## Geliştirme
 

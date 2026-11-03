@@ -1,4 +1,9 @@
-import { test, expect } from "@playwright/test";
+import { test as base, expect } from "@playwright/test";
+const test=base.extend({browser:async({browser},use)=>{
+  const original=browser.newContext.bind(browser);
+  browser.newContext=async(...args)=>{const c=await original(...args);await c.addInitScript(()=>{Object.defineProperty(navigator.mediaDevices,'getDisplayMedia',{value:undefined,configurable:true});});return c;};
+  await use(browser);browser.newContext=original;
+}});
 test("real peer connection, verification, unsupported capture, disconnect", async ({
   browser,
 }) => {
@@ -85,8 +90,9 @@ test("media travels over WebRTC and ending the session stops capture", async ({
   await sender.locator("#join").click();
   await expect(receiver.locator("#consent")).toBeVisible({ timeout: 25000 });
   await receiver.locator("#accept").click();
-  await sender.locator("#share").click();
   await expect(receiver.locator("#viewer")).toBeVisible({ timeout: 25000 });
+  const events = JSON.parse(await sender.locator('#connection-details').textContent()).events.map(e=>e.event);
+  expect(events.indexOf('capture-started')).toBeLessThan(events.indexOf('signal-open'));
   await expect
     .poll(() => receiver.locator("#video").evaluate((v) => v.videoWidth))
     .toBe(320);
@@ -158,8 +164,8 @@ test("signaling interruption preserves an established device session", async ({
       timeout: 10000,
     })
     .toBe(1);
-  await expect(receiver.locator("#status")).toContainText("Eşleştirildi");
-  await expect(sender.locator("#share")).toBeVisible();
+  await expect(receiver.locator("#status")).toContainText("Cihaz bağlandı");
+  await expect(sender.locator("#capability")).toBeVisible();
   await ctx.close();
 });
 test("sender can retry a rejected connection without scanning again", async ({
