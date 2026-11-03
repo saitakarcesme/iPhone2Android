@@ -1,6 +1,5 @@
 import { test, expect, webkit } from '@playwright/test';
 test('iPhone-like WebKit can pair with Chromium tablet', async ({browser},testInfo)=>{
-  test.fail(true, 'Known issue: WebKit pairing requires a working relay or HTTPS pairing transport.');
   test.setTimeout(80000);
   const tablet=await browser.newContext({permissions:['clipboard-read','clipboard-write']});
   const receiver=await tablet.newPage();
