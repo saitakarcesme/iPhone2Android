@@ -4,7 +4,7 @@
 
 Samsung telefon ve tabletlerden iPhone ekranına erişme hedefiyle geliştirilen deneysel proje.
 
-Site: https://iphone2android-sait.ibrahimsait.chatgpt.site
+Site: https://iphone2android-ibrahimsait2023-projects.vercel.app
 
 ## Mevcut sürüm
 
@@ -16,7 +16,7 @@ Site: https://iphone2android-sait.ibrahimsait.chatgpt.site
 
 Bu sürüm iPhone uzaktan kontrolü içermez. iOS tarayıcısında ekran yakalama yoksa bunu açıkça bildirir; kamera veya örnek görüntüyü telefon ekranı olarak göstermez. Native iOS ReplayKit yayın uygulaması ve Android Bluetooth HID kontrol uygulaması henüz uygulanmadı.
 
-PeerJS Cloud yalnızca bağlantı sinyalleşmesi için kullanılır. Medya WebRTC üzerinden taşınır. TURN sunucusu yapılandırılmadığı için bazı ağlarda bağlantı kurulamayabilir. Aynı Wi-Fi ağı önerilir. Yayınlanan Sites sürümü sahip hesabına özeldir.
+PeerJS Cloud yalnızca bağlantı sinyalleşmesi için kullanılır. Medya WebRTC üzerinden taşınır. TURN sunucusu yapılandırılmadığı için bazı ağlarda bağlantı kurulamayabilir. Aynı Wi-Fi ağı önerilir. Web uygulaması Vercel üzerinde yayınlanır.
 
 ## Geliştirme
 
