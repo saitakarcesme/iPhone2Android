@@ -1,4 +1,5 @@
 import Peer from "peerjs";
+import { createDiagnostics } from "./diagnostics.js";
 import QRCode from "qrcode";
 import "./style.css";
 import {
@@ -26,9 +27,28 @@ let peer,
   reconnectTimer,
   reconnectAttempts = 0;
 const isSender = location.hash.startsWith("#join=");
+const diagnostics = createDiagnostics();
+function trace(event, value = '') {
+  diagnostics.record(event, value);
+  $('connection-details').textContent = JSON.stringify({version:'0.1.2', role:isSender?'sender':'receiver', screenCapture:typeof navigator.mediaDevices?.getDisplayMedia==='function', events:diagnostics.snapshot()}, null, 2);
+}
+$('copy-diagnostics').onclick=async()=>{
+ try {await navigator.clipboard.writeText($('connection-details').textContent);say('copy-diagnostics','Kopyalandı');}
+ catch { $('diagnostics').open=true; }
+};
+trace('page-ready');
+function observeData(c) {
+ trace('data-created');
+ c.on('open',()=>trace('data-open'));
+ c.on('iceStateChanged',state=>trace('ice',state));
+ c.on('error',e=>trace('data-error',e.type||'unknown'));
+ c.on('close',()=>trace('data-closed'));
+}
+
 function error(message) {
   say("global-error", message);
   show("global-error");
+  $("diagnostics").open=true;
 }
 function clearTimers() {
   clearTimeout(timer);
@@ -82,12 +102,14 @@ function stopSession(message = "Oturum sonlandırıldı.") {
 function setupPeer(id) {
   const p = id ? new Peer(id) : new Peer();
   p.on("open", () => {
+    trace("signal-open");
     if (peer !== p) return;
     reconnectAttempts = 0;
     clearTimeout(reconnectTimer);
     reconnectTimer = null;
   });
   function recover() {
+    trace("signal-reconnecting");
     if (stopping || peer !== p || p.destroyed || reconnectTimer) return;
     if (reconnectAttempts >= 3) {
       if (!connection?.open)
@@ -107,6 +129,7 @@ function setupPeer(id) {
     );
   }
   p.on("error", (e) => {
+    trace("signal-error",e.type||"unknown");
     if (stopping || peer !== p) return;
     if (["network", "socket-error", "socket-closed"].includes(e.type)) {
       recover();
@@ -128,8 +151,9 @@ function monitorConnection(c) {
       stopSession("Diğer cihaz bağlantıyı kapattı.");
   });
   c.on("error", () => {
+    $("diagnostics").open=true;
     if (!stopping && connection === c)
-      stopSession("Cihaz bağlantısı kesildi. Tekrar bağlanmayı dene.");
+      stopSession("Cihazlar arasında veri bağlantısı kurulamadı. Bağlantı ayrıntılarındaki hata kodunu paylaşabilirsin.");
   });
 }
 async function startReceiver() {
@@ -172,6 +196,7 @@ async function startReceiver() {
     }
   });
   peer.on("connection", (c) => {
+    observeData(c);
     if (pending || connection || Date.now() >= session.expires) {
       c.on("open", () => c.close());
       return;
@@ -281,6 +306,7 @@ $("accept").onclick = () => {
   connection = pending;
   pending = null;
   accepted = true;
+  trace("pairing-accepted");
   clearTimeout(timer);
   clearTimeout(authTimer);
   show("consent", false);
@@ -334,6 +360,7 @@ function startSender() {
     );
     peer.once("open", () => {
       connection = peer.connect("i2a-" + session.id, { reliable: true });
+      observeData(connection);
       connection.on("open", async () => {
         clearTimeout(connectionTimer);
         connection.send({ type: "hello", key: session.key });
