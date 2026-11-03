@@ -96,6 +96,7 @@ test("media travels over WebRTC and ending the session stops capture", async ({
   await expect
     .poll(() => receiver.locator("#video").evaluate((v) => v.videoWidth))
     .toBe(320);
+  await expect(sender.locator("#sender-status")).toHaveText("Ekran görüntüsü tablette alınıyor.");
   await receiver.locator("#stop").click();
   await expect
     .poll(() =>

@@ -1,5 +1,5 @@
 import Peer from "peerjs";
-import { captureErrorMessage } from "./capture.js";
+import { captureErrorMessage, requestScreenCapture } from "./capture.js";
 import { createDiagnostics } from "./diagnostics.js";
 import QRCode from "qrcode";
 import "./style.css";
@@ -28,11 +28,12 @@ let peer,
   reconnectTimer,
   reconnectAttempts = 0;
 let captureAttempt = 0;
+let captureController = null, needsCaptureReload = false;
 const isSender = location.hash.startsWith("#join=");
 const diagnostics = createDiagnostics();
 function trace(event, value = '') {
   diagnostics.record(event, value);
-  $('connection-details').textContent = JSON.stringify({version:'0.2.0', role:isSender?'sender':'receiver', screenCaptureApi:typeof navigator.mediaDevices?.getDisplayMedia==='function', events:diagnostics.snapshot()}, null, 2);
+  $('connection-details').textContent = JSON.stringify({version:'0.2.1', role:isSender?'sender':'receiver', screenCaptureApi:typeof navigator.mediaDevices?.getDisplayMedia==='function', events:diagnostics.snapshot()}, null, 2);
 }
 $('copy-diagnostics').onclick=async()=>{
  try {await navigator.clipboard.writeText($('connection-details').textContent);say('copy-diagnostics','Kopyalandı');}
@@ -63,6 +64,8 @@ function stopSession(message = "Oturum sonlandırıldı.") {
   if (stopping) return;
   stopping = true;
   captureAttempt++;
+  captureController?.abort();
+  captureController=null;
   clearTimers();
   const oldPeer = peer,
     oldConnection = connection,
@@ -284,13 +287,20 @@ async function startReceiver() {
     mediaCall = call;
     call.answer();
     connectionTimer = setTimeout(() => {
-      if (!$("video").srcObject)
+      if ($("video").readyState < 2)
         stopSession(
           "Görüntü bağlantısı kurulamadı. Cihazları aynı Wi-Fi ağına bağlayıp tekrar dene.",
         );
     }, 45000);
     call.on("stream", (stream) => {
-      clearTimeout(connectionTimer);
+      $("video").onloadeddata=()=>{
+        if(mediaCall!==call)return;
+        clearTimeout(connectionTimer);
+        trace('media-frame-received');
+        connection?.send({type:'media-ready',callId:call.connectionId});
+        document.querySelector('.viewer-top strong').textContent='Canlı ekran';
+      };
+      document.querySelector('.viewer-top strong').textContent='Görüntü bekleniyor…';
       $("video").srcObject = stream;
       show("pair", false);
       show("viewer");
@@ -344,6 +354,7 @@ function startSender() {
   }
   if (typeof navigator.mediaDevices?.getDisplayMedia === 'function') say('join','Ekranı paylaş ve bağlan');
   $('join').onclick = async () => {
+    if(needsCaptureReload){location.reload();return;}
     if (Date.now() >= session.expires) {
       say("sender-status", "QR kodunun süresi doldu. Yeni kodu okut.");
       return;
@@ -362,14 +373,21 @@ function startSender() {
       const attempt = ++captureAttempt;
       say('sender-status','Ekran paylaşımını onayla. Görüntü, tablette bağlantıyı kabul ettikten sonra gönderilecek.');
       trace('capture-requested');
+      say('join','Paylaşım yanıtı bekleniyor…');
+      captureController = new AbortController();
       try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:30,max:30}},audio:true});
+        const stream = await requestScreenCapture(navigator.mediaDevices,{signal:captureController.signal});
+        captureController=null;
         if (attempt !== captureAttempt) { stream.getTracks().forEach(t=>t.stop()); return; }
         if (!stream.getVideoTracks().some(t=>t.readyState==='live')) { stream.getTracks().forEach(t=>t.stop()); throw new DOMException('No live video','NotReadableError'); }
         localStream = stream;
         trace('capture-started');
         stream.getVideoTracks()[0].onended=()=>{connection?.send({type:'sharing-stopped'});stopSession('Ekran paylaşımı durduruldu.');};
       } catch(e) {
+        if(attempt!==captureAttempt)return;
+        captureController=null;
+        needsCaptureReload=e.name==='TimeoutError';
+        say('join',needsCaptureReload?'Yenile ve tekrar dene':'Ekranı paylaş ve bağlan');
         trace('capture-error',e.name||'unknown');
         say('sender-status',captureErrorMessage(e));
         $('join').disabled=false;
@@ -379,6 +397,7 @@ function startSender() {
     }
     if(Date.now()>=session.expires){stopSession('QR kodunun süresi doldu. Tablette yeni bir QR kodu oluştur.');return;}
     say('sender-status','Tablete bağlanılıyor… İki cihazın da sayfasını açık tut.');
+    say('join','Tablete bağlanılıyor…');
     peer = setupPeer();
     connectionTimer = setTimeout(
       () =>
@@ -401,6 +420,10 @@ function startSender() {
       });
       monitorConnection(connection);
       connection.on("data", (d) => {
+        if(d?.type==='media-ready' && accepted && mediaCall?.connectionId===d.callId){
+          clearTimeout(connectionTimer);trace('media-confirmed');
+          say('sender-status','Ekran görüntüsü tablette alınıyor.');return;
+        }
         if (d?.type !== "accepted" || accepted) return;
         accepted = true;
         show("join", false);
@@ -429,7 +452,8 @@ function sendCapturedScreen() {
     const call = peer.call(connection.peer, localStream, {metadata:{key:session.key}});
     if(!call)throw new Error('Media connection unavailable');
     mediaCall=call;trace('media-started');
-    say('sender-status','Ekran yayını başlatıldı. Durdurmak için tarayıcının ekran paylaşımı kontrolünü kullan.');
+    say('sender-status','Tablet görüntüyü almaya hazırlanıyor…');
+    connectionTimer=setTimeout(()=>{if(mediaCall===call)stopSession('Tablet ekran görüntüsünü alamadı. Ekran paylaşımı durduruldu; tekrar deneyebilirsin.');},30000);
     call.on('error',()=>{if(mediaCall===call)stopSession('Ekran aktarımı kurulamadı.');});
     call.on('close',()=>{if(!stopping&&mediaCall===call)stopSession('Tablet ekran aktarımını kapattı.');});
   } catch {stopSession('Ekran aktarımı kurulamadı.');}
