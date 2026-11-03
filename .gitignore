@@ -7,3 +7,6 @@ dist/
 !.env.example
 *.pem
 *.key
+artifacts/
+playwright-report/
+test-results/
